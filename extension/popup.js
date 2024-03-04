@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
-  chrome.runtime.sendMessage({ action: 'callServiceWorkerFunction' });
+  chrome.runtime.sendMessage({ action: 'populateData' });
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
