@@ -21,7 +21,7 @@ function formatApiData(data) {
     for(let d of data) {
         console.log("formatApiData", d);
         if(d.hasOwnProperty("assets")){
-            op += "<b><u>" + d.tag_name + "</u></b><br />";
+            op += "<b><u><a href=\"" + d.html_url + "\">" + d.tag_name + "</a></u></b><br />";
             let l = null;
             let w = null;
             let m = null;

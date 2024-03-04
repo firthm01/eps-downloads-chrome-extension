@@ -3,6 +3,9 @@
   "name": "EPS Download Stats",
   "version": "1.0",
   "description": "Shows download stats for each version of the EAR Production Suite by platform.",
+  "permissions": [
+    "tabs"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
