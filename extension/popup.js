@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
-  chrome.runtime.sendMessage({ action: 'populateData' });
+  chrome.runtime.sendMessage({ action: 'populateData'});
+  chrome.runtime.sendMessage({ action: 'resetCounter'});
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

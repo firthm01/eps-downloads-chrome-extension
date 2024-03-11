@@ -1,19 +1,82 @@
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'populateData') {
-    pullApiData();
+class BadgeHandler {
+  constructor() {
+    this.lastKnownCountPulled = null;
+    this.lastCountUsedForDiff = null;
   }
+  resetCount() {
+    console.log("BadgeHandler.resetCount");
+    this.lastCountUsedForDiff = this.lastKnownCountPulled;
+    this._updateBadge();
+  }
+  updatePulledCount(count) {
+    console.log("BadgeHandler.updatePulledCount: ", count);
+    this.lastKnownCountPulled = count;
+    this._updateBadge();
+  }
+  _updateBadge() {
+    console.log("BadgeHandler._updateBadge: ", this.lastCountUsedForDiff, this.lastKnownCountPulled);
+    if(this.lastCountUsedForDiff === null) {
+        this.lastCountUsedForDiff = this.lastKnownCountPulled;
+    }
+    if(this.lastKnownCountPulled === null) {
+        chrome.action.setBadgeText({});
+    } else {
+        let diff = this.lastKnownCountPulled - this.lastCountUsedForDiff;
+        console.log("BadgeHandler._updateBadge diff: ", diff);
+        if(diff == 0) {
+            chrome.action.setBadgeText({});
+        } else if(diff > 99) {
+            chrome.action.setBadgeText({ text: ">99" });
+        } else {
+            chrome.action.setBadgeText({ text: diff.toString() });
+        }
+    }
+  }
+}
+var badgeHandler = new BadgeHandler();
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log("background onMessage listener: ", message);
+    if (message.action === 'populateData') {
+        pullApiData(apiData => {
+            chrome.runtime.sendMessage({ action: "showData", data: formatApiData(apiData) });
+        });
+    }
+    if (message.action === 'resetCounter') {
+        badgeHandler.resetCount();
+    }
 });
 
-function pullApiData() {
+function pullApiData(callback) {
   const url = 'https://api.github.com/repos/ebu/ear-production-suite/releases';
-  console.log("Fetching...", url);
+  console.log("pullApiData Fetching...", url);
   fetch(url)
     .then(response => response.json())
     .then(data => {
-        console.log("pullApiData", data);
-        chrome.runtime.sendMessage({ action: "showData", data: formatApiData(data) });
+        console.log("pullApiData Received: ", data);
+        callback(data);
     })
-    .catch(error => console.error('Error fetching data:', error));
+    .catch(error => {
+        console.error('pullApiData Error fetching data:', error);
+    });
+}
+
+function getTotalDownloadsLatestFromApiData(data) {
+    for(let d of data) {
+        console.log("getTotalDownloadsLatestFromApiData", d);
+        if(d.hasOwnProperty("assets")){
+            let l = 0;
+            let w = 0;
+            let m = 0;
+            for(let a of d.assets) {
+                if(a.name.toLowerCase().includes("mac") || a.name.toLowerCase().endsWith(".dmg")) m += a.download_count;
+                if(a.name.toLowerCase().includes("win")) w += a.download_count;
+                if(a.name.toLowerCase().includes("linux")) l += a.download_count;
+            }
+            return m+l+w;
+        }
+    }
+    return null;
 }
 
 function formatApiData(data) {
@@ -30,7 +93,8 @@ function formatApiData(data) {
                 if(a.name.toLowerCase().includes("win")) w += a.download_count;
                 if(a.name.toLowerCase().includes("linux")) l += a.download_count;
             }
-            op += "<b>&#931; " + (m+l+w) + "</b>&nbsp;&nbsp;&nbsp;";
+            let totalDl = m+l+w;
+            op += "<b>&#931; " + totalDl.toString() + "</b>&nbsp;&nbsp;&nbsp;";
             op += "&nbsp;&nbsp;&nbsp;<img src=\"img/win.png\" height=\"12\"> " + w;
             op += "&nbsp;&nbsp;&nbsp;<img src=\"img/mac.png\" height=\"12\"> " + m;
             if(l!==null) op += "&nbsp;&nbsp;&nbsp;<img src=\"img/linux.png\" height=\"12\"> " + l;
@@ -52,3 +116,19 @@ function formatApiData(data) {
     }
     return op;
 }
+
+function backgroundApiCheck() {
+    console.log("backgroundApiCheck...");
+    pullApiData(apiData => {
+        let totalDl = getTotalDownloadsLatestFromApiData(apiData);
+        console.log("backgroundApiCheck totalDl:", totalDl);
+        if(totalDl === null) {
+          badgeHandler.resetCount();
+        } else {
+          badgeHandler.updatePulledCount(totalDl);
+        }
+    });
+}
+
+backgroundApiCheck();
+setInterval(backgroundApiCheck, 60000);
