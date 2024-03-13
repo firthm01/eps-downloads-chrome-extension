@@ -52,6 +52,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
+function getTimeString() {
+    let now = new Date();
+    let hours = String(now.getHours()).padStart(2, '0');
+    let minutes = String(now.getMinutes()).padStart(2, '0');
+    let seconds = String(now.getSeconds()).padStart(2, '0');
+    return hours + ':' + minutes + ':' + seconds;
+}
+
 function pullApiData(callback) {
   const url = 'https://api.github.com/repos/ebu/ear-production-suite/releases';
   console.log("pullApiData Fetching...", url);
@@ -123,7 +131,7 @@ function formatApiData(data) {
 }
 
 function backgroundApiCheck() {
-    console.log("backgroundApiCheck...");
+    console.log("backgroundApiCheck... (" + getTimeString() + ")");
     pullApiData(apiData => {
         let totalDl = getTotalDownloadsLatestFromApiData(apiData);
         console.log("backgroundApiCheck totalDl:", totalDl);
