@@ -23,6 +23,11 @@ class BadgeHandler {
     } else {
         let diff = this.lastKnownCountPulled - this.lastCountUsedForDiff;
         console.log("BadgeHandler._updateBadge diff: ", diff);
+        if(diff < 0) {
+            // Must be new release since last check. Reset counters.
+            diff = 0;
+            this.lastCountUsedForDiff = this.lastKnownCountPulled;
+        }
         if(diff == 0) {
             chrome.action.setBadgeText({});
         } else if(diff > 99) {
