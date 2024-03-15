@@ -39,12 +39,18 @@ class BadgeHandler {
   }
 }
 var badgeHandler = new BadgeHandler();
+var latestApiData = null;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log("background onMessage listener: ", message);
     if (message.action === 'populateData') {
-        pullApiData(apiData => {
-            chrome.runtime.sendMessage({ action: "showData", data: formatApiData(apiData) });
+        pullApiData(success => {
+            // Note we're not interested in success - we'll try to use latestApiData regardless to populate with what we know.
+            if(latestApiData) {
+                chrome.runtime.sendMessage({ action: "showData", data: formatApiData(latestApiData) });
+            } else {
+                chrome.runtime.sendMessage({ action: "showData", data: "No data available!" });
+            }
         });
     }
     if (message.action === 'resetCounter') {
@@ -66,11 +72,18 @@ function pullApiData(callback) {
   fetch(url)
     .then(response => response.json())
     .then(data => {
-        console.log("pullApiData Received: ", data);
-        callback(data);
+        if(typeof(data.message) === "string" && data.message.startsWith("API rate limit exceeded")) {
+            console.warn("pullApiData rate limit exceeded. Should resume shortly.", data);
+            callback(null);
+        } else {
+            console.log("pullApiData Received: ", data);
+            latestApiData = data;
+            callback(data);
+        }
     })
     .catch(error => {
         console.error('pullApiData Error fetching data:', error);
+        callback(null);
     });
 }
 
@@ -133,12 +146,14 @@ function formatApiData(data) {
 function backgroundApiCheck() {
     console.log("backgroundApiCheck... (" + getTimeString() + ")");
     pullApiData(apiData => {
-        let totalDl = getTotalDownloadsLatestFromApiData(apiData);
-        console.log("backgroundApiCheck totalDl:", totalDl);
-        if(totalDl === null) {
-          badgeHandler.resetCount();
-        } else {
-          badgeHandler.updatePulledCount(totalDl);
+        if(apiData) {
+            let totalDl = getTotalDownloadsLatestFromApiData(apiData);
+            console.log("backgroundApiCheck totalDl:", totalDl);
+            if(totalDl === null) {
+              badgeHandler.resetCount();
+            } else {
+              badgeHandler.updatePulledCount(totalDl);
+            }
         }
     });
 }
